@@ -8,18 +8,25 @@ interface TypingEffectProps {
 
 export const TypingEffect = ({ text, onComplete }: TypingEffectProps) => {
   const [displayedText, setDisplayedText] = useState('');
-  const [showCursor, setShowCursor] = useState(true);
+  const [isTyping, setIsTyping] = useState(true);
 
   useEffect(() => {
-    if (!text) return;
+    if (!text) {
+      setIsTyping(false);
+      if (onComplete) {
+        onComplete();
+      }
+      return;
+    }
 
+    setIsTyping(true);
     let i = 0;
     const intervalId = setInterval(() => {
       setDisplayedText(text.substring(0, i + 1));
       i++;
       if (i > text.length) {
         clearInterval(intervalId);
-        setShowCursor(false);
+        setIsTyping(false);
         if (onComplete) {
           onComplete();
         }
@@ -31,8 +38,14 @@ export const TypingEffect = ({ text, onComplete }: TypingEffectProps) => {
 
   return (
     <>
-      <MarkdownRenderer content={displayedText} />
-      {showCursor && <span className="typing-cursor" />}
+      {isTyping ? (
+        <>
+          {displayedText}
+          <span className="typing-cursor" />
+        </>
+      ) : (
+        <MarkdownRenderer content={text} />
+      )}
     </>
   );
 };

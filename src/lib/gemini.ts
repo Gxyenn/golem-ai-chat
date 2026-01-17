@@ -37,7 +37,7 @@ export async function sendMessage(
 ): Promise<string> {
   try {
     const model = genAI.getGenerativeModel({ 
-      model: imageData ? "gemini-1.5-flash" : "gemini-1.5-flash",
+      model: imageData ? "gemini-pro-vision" : "gemini-pro",
       systemInstruction: SYSTEM_PROMPT,
     });
 
@@ -113,7 +113,7 @@ export async function streamMessage(
 ): Promise<string> {
   try {
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
+      model: "gemini-pro",
       systemInstruction: SYSTEM_PROMPT,
     });
 

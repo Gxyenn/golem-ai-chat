@@ -112,6 +112,7 @@ const CodeBlock = ({ language, code }: CodeBlockProps) => {
           padding: "1rem",
           background: "hsl(var(--card))",
           fontSize: "0.875rem",
+          overflowX: 'auto',
         }}
         showLineNumbers
         lineNumberStyle={{
