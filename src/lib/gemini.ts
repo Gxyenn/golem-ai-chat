@@ -153,7 +153,6 @@ export async function streamMessage(
   } catch (error: any) {
     console.error("Error streaming message from Gemini:", error);
     
-    // Check for specific error types
     if (error?.message?.includes("API_KEY_INVALID") || error?.message?.includes("API key") || error?.message?.includes("invalid")) {
       throw new APIError(
         "API Key tidak valid atau sudah expired. Silakan hubungi developer untuk memperbarui API key.",
@@ -179,6 +178,13 @@ export async function streamMessage(
       throw new APIError(
         "Terlalu banyak permintaan. Silakan tunggu beberapa saat dan coba lagi.",
         "RATE_LIMITED"
+      );
+    }
+
+    if (error.message) {
+      throw new APIError(
+        error.message,
+        "UNKNOWN_ERROR"
       );
     }
     

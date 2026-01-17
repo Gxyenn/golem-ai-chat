@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { User } from "lucide-react";
 import { MarkdownRenderer } from "./MarkdownRenderer";
+import { TypingEffect } from "./TypingEffect";
 import golemLogo from "@/assets/golem-logo.png";
 
 interface ChatMessageProps {
@@ -25,9 +26,9 @@ export const ChatMessage = ({ role, content, isStreaming, imageUrl }: ChatMessag
         </div>
         <div className="chat-bubble-ai px-4 py-3">
           <div className="flex gap-1">
-            <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-            <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-            <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+            <span className="w-2 h-2 bg-primary rounded-full animate-pulse" style={{ animationDelay: "0ms" }} />
+            <span className="w-2 h-2 bg-primary rounded-full animate-pulse" style={{ animationDelay: "150ms" }} />
+            <span className="w-2 h-2 bg-primary rounded-full animate-pulse" style={{ animationDelay: "300ms" }} />
           </div>
         </div>
       </motion.div>
@@ -81,9 +82,10 @@ export const ChatMessage = ({ role, content, isStreaming, imageUrl }: ChatMessag
           <p className="whitespace-pre-wrap leading-relaxed">{content}</p>
         ) : (
           <div className="min-w-0">
-            <MarkdownRenderer content={content} />
-            {isStreaming && (
-              <span className="typing-cursor inline-block w-2 h-5 bg-primary ml-1 align-middle" />
+            {isStreaming ? (
+              <TypingEffect text={content} />
+            ) : (
+              <MarkdownRenderer content={content} />
             )}
           </div>
         )}
