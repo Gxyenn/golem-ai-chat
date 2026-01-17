@@ -13,6 +13,7 @@ interface ChatSidebarProps {
   onNewChat: () => void;
   onSelectChat: (id: string) => void;
   onDeleteChat: (id: string) => void;
+  onClearAllHistory: () => void;
 }
 
 export const ChatSidebar = ({
@@ -23,6 +24,7 @@ export const ChatSidebar = ({
   onNewChat,
   onSelectChat,
   onDeleteChat,
+  onClearAllHistory,
 }: ChatSidebarProps) => {
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -137,7 +139,18 @@ export const ChatSidebar = ({
         </ScrollArea>
 
         {/* Footer */}
-        <div className="p-4 border-t border-sidebar-border">
+        <div className="p-4 border-t border-sidebar-border space-y-3">
+          {chats.length > 0 && (
+            <Button
+              onClick={onClearAllHistory}
+              variant="destructive"
+              size="sm"
+              className="w-full gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              Hapus Semua Riwayat
+            </Button>
+          )}
           <p className="text-xs text-muted-foreground text-center">
             Dibuat oleh <span className="text-primary font-medium">Stoky</span>
           </p>

@@ -11,6 +11,7 @@ import {
   createNewChat,
   addMessageToChat,
   deleteChat,
+  clearAllChats,
   type ChatSession,
   type Message,
 } from "@/lib/chatStorage";
@@ -75,6 +76,14 @@ const Chat = () => {
       }
     }
   }, [currentChatId]);
+
+  const handleClearAllHistory = useCallback(() => {
+    clearAllChats();
+    setChats([]);
+    setCurrentChatId(null);
+    setMessages([]);
+    setSidebarOpen(false);
+  }, []);
 
   const convertToGeminiHistory = (messages: Message[]): GeminiMessage[] => {
     return messages.map((msg) => ({
@@ -157,25 +166,16 @@ const Chat = () => {
         onNewChat={handleNewChat}
         onSelectChat={handleSelectChat}
         onDeleteChat={handleDeleteChat}
+        onClearAllHistory={handleClearAllHistory}
       />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <header className="flex items-center justify-between p-4 border-b border-border bg-card/50 backdrop-blur-xl">
-          <div className="flex items-center gap-3">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setSidebarOpen(true)}
-              className="p-2 rounded-xl hover:bg-secondary transition-colors lg:hidden"
-            >
-              <Menu className="w-5 h-5" />
-            </motion.button>
-            <div className="flex items-center gap-2">
-              <img src={golemLogo} alt="Golem AI" className="w-8 h-8 rounded-lg" />
-              <h1 className="font-semibold">Golem AI</h1>
-            </div>
+          <div className="flex items-center gap-2">
+            <img src={golemLogo} alt="Golem AI" className="w-8 h-8 rounded-lg" />
+            <h1 className="font-semibold">Golem AI</h1>
           </div>
           
           <motion.button
