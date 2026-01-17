@@ -94,6 +94,23 @@ export function addMessageToChat(
   return newMessage;
 }
 
+export function updateMessageInChat(chatId: string, updatedMessage: Message): void {
+  const chats = getAllChats();
+  const chatIndex = chats.findIndex((chat) => chat.id === chatId);
+
+  if (chatIndex !== -1) {
+    const messageIndex = chats[chatIndex].messages.findIndex(
+      (msg) => msg.id === updatedMessage.id
+    );
+
+    if (messageIndex !== -1) {
+      chats[chatIndex].messages[messageIndex] = updatedMessage;
+      chats[chatIndex].updatedAt = Date.now();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
+    }
+  }
+}
+
 export function deleteChat(id: string): boolean {
   const chats = getAllChats();
   const filtered = chats.filter((chat) => chat.id !== id);

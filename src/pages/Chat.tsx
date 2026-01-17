@@ -11,6 +11,7 @@ import {
   addMessageToChat,
   deleteChat,
   clearAllChats,
+  updateMessageInChat,
   type ChatSession,
   type Message,
 } from "@/lib/chatStorage";
@@ -23,10 +24,8 @@ const Chat = () => {
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [streamingContent, setStreamingContent] = useState("");
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   // Load chats on mount
   useEffect(() => {
@@ -34,15 +33,16 @@ const Chat = () => {
     setChats(loadedChats);
     
     if (loadedChats.length > 0) {
-      setCurrentChatId(loadedChats[0].id);
-      setMessages(loadedChats[0].messages);
+      const lastChat = loadedChats[0];
+      setCurrentChatId(lastChat.id);
+      setMessages(lastChat.messages);
     }
   }, []);
 
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingContent]);
+  }, [messages]);
 
   const handleNewChat = useCallback(() => {
     const newChat = createNewChat();
@@ -58,9 +58,9 @@ const Chat = () => {
     if (chat) {
       setCurrentChatId(id);
       setMessages(chat.messages);
+      setError(null);
     }
     setSidebarOpen(false);
-    setError(null);
   }, []);
 
   const handleDeleteChat = useCallback((id: string) => {
@@ -88,7 +88,8 @@ const Chat = () => {
   }, []);
 
   const convertToGeminiHistory = (messages: Message[]): GeminiMessage[] => {
-    return messages.map((msg) => ({
+    // Take the last 20 messages to keep the history concise
+    return messages.slice(-20).map((msg) => ({
       role: msg.role === "user" ? "user" : "model",
       parts: [{ text: msg.content }],
     }));
@@ -100,13 +101,16 @@ const Chat = () => {
   ) => {
     setError(null);
     let chatId = currentChatId;
-    
+    let tempMessages = messages;
+
     // Create new chat if needed
     if (!chatId) {
       const newChat = createNewChat();
-      setChats(getAllChats());
       chatId = newChat.id;
       setCurrentChatId(chatId);
+      setChats(getAllChats());
+      setMessages([]);
+      tempMessages = [];
     }
 
     // Add user message
@@ -115,15 +119,19 @@ const Chat = () => {
       content: message,
       imageUrl: imageData ? `data:${imageData.mimeType};base64,${imageData.data}` : undefined,
     });
-
-    const updatedMessages = [...messages, userMessage];
-    setMessages(updatedMessages);
-    setChats(getAllChats());
+    setMessages([...tempMessages, userMessage]);
+    
     setIsLoading(true);
-    setStreamingContent("");
+
+    // Add a placeholder for the AI response
+    const aiMessagePlaceholder = addMessageToChat(chatId, {
+      role: "assistant",
+      content: "",
+    });
+    setMessages([...tempMessages, userMessage, aiMessagePlaceholder]);
 
     try {
-      const history = convertToGeminiHistory(messages);
+      const history = convertToGeminiHistory(tempMessages);
       
       let fullResponse = "";
       await streamMessage(
@@ -131,22 +139,24 @@ const Chat = () => {
         history,
         (chunk) => {
           fullResponse += chunk;
-          setStreamingContent(fullResponse);
+          setMessages((prevMessages) =>
+            prevMessages.map((msg) =>
+              msg.id === aiMessagePlaceholder.id
+                ? { ...msg, content: fullResponse }
+                : msg
+            )
+          );
         },
         imageData
       );
 
-      // Add AI response
-      const aiMessage = addMessageToChat(chatId, {
-        role: "assistant",
-        content: fullResponse,
-      });
-
-      setMessages([...updatedMessages, aiMessage]);
+      // Update the final message in storage
+      const finalAiMessage = { ...aiMessagePlaceholder, content: fullResponse };
+      updateMessageInChat(chatId, finalAiMessage);
       setChats(getAllChats());
+
     } catch (err) {
       console.error("Error:", err);
-      
       let errorMessage = "Maaf, terjadi kesalahan. Silakan coba lagi.";
       
       if (err instanceof APIError) {
@@ -154,20 +164,24 @@ const Chat = () => {
         setError(err.message);
       } else if (err instanceof Error) {
         errorMessage = err.message;
-        setError(err.message);
       }
       
-      const aiErrorMessage = addMessageToChat(chatId, {
-        role: "assistant",
+      const aiErrorMessage = {
+        ...aiMessagePlaceholder,
         content: `⚠️ **Error:** ${errorMessage}`,
-      });
-      setMessages([...updatedMessages, aiErrorMessage]);
+      };
+      
+      updateMessageInChat(chatId, aiErrorMessage);
+      setMessages([...tempMessages, userMessage, aiErrorMessage]);
       setChats(getAllChats());
+
     } finally {
       setIsLoading(false);
-      setStreamingContent("");
     }
   };
+
+  const lastMessageIsStreaming =
+    isLoading && messages.length > 0 && messages[messages.length - 1].content === "";
 
   return (
     <div className="flex h-[100dvh] bg-background dark overflow-hidden">
@@ -203,35 +217,25 @@ const Chat = () => {
         </header>
 
         {/* Error Banner */}
-        <AnimatePresence>
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="flex-shrink-0 bg-destructive/10 border-b border-destructive/20 px-4 py-3"
-            >
-              <div className="max-w-3xl mx-auto flex items-center gap-3 text-destructive">
-                <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-                <p className="text-sm">{error}</p>
-                <button
-                  onClick={() => setError(null)}
-                  className="ml-auto text-xs underline hover:no-underline"
-                >
-                  Tutup
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {error && (
+          <div className="flex-shrink-0 bg-destructive/10 border-b border-destructive/20 px-4 py-3">
+            <div className="max-w-3xl mx-auto flex items-center gap-3 text-destructive">
+              <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+              <p className="text-sm">{error}</p>
+              <button
+                onClick={() => setError(null)}
+                className="ml-auto text-xs underline hover:no-underline"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Messages */}
-        <div 
-          ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto p-4"
-        >
+        <div className="flex-1 overflow-y-auto p-4">
           <div className="max-w-3xl mx-auto space-y-6 pb-4">
-            <AnimatePresence mode="popLayout">
+            <AnimatePresence>
               {messages.length === 0 && !isLoading && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -254,42 +258,22 @@ const Chat = () => {
                   </p>
                 </motion.div>
               )}
-
-              {messages.map((msg) => (
+            </AnimatePresence>
+            
+            <AnimatePresence>
+              {messages.map((msg, index) => (
                 <ChatMessage
                   key={msg.id}
                   role={msg.role}
                   content={msg.content}
                   imageUrl={msg.imageUrl}
+                  isStreaming={
+                    isLoading &&
+                    msg.role === "assistant" &&
+                    index === messages.length - 1
+                  }
                 />
               ))}
-
-              {isLoading && streamingContent && (
-                <ChatMessage
-                  role="assistant"
-                  content={streamingContent}
-                  isStreaming
-                />
-              )}
-
-              {isLoading && !streamingContent && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex gap-3"
-                >
-                  <div className="w-9 h-9 rounded-full bg-secondary border border-border flex items-center justify-center overflow-hidden">
-                    <img src={golemLogo} alt="Golem AI" className="w-full h-full object-cover" />
-                  </div>
-                  <div className="chat-bubble-ai px-4 py-3">
-                    <div className="flex gap-1">
-                      <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                      <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                      <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                    </div>
-                  </div>
-                </motion.div>
-              )}
             </AnimatePresence>
             <div ref={messagesEndRef} />
           </div>

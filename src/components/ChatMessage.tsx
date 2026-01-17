@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { User, Bot } from "lucide-react";
+import { User } from "lucide-react";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import golemLogo from "@/assets/golem-logo.png";
 
@@ -13,9 +13,30 @@ interface ChatMessageProps {
 export const ChatMessage = ({ role, content, isStreaming, imageUrl }: ChatMessageProps) => {
   const isUser = role === "user";
 
+  if (isStreaming && content === "") {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex gap-3"
+      >
+        <div className="w-9 h-9 rounded-full bg-secondary border border-border flex items-center justify-center overflow-hidden">
+          <img src={golemLogo} alt="Golem AI" className="w-full h-full object-cover" />
+        </div>
+        <div className="chat-bubble-ai px-4 py-3">
+          <div className="flex gap-1">
+            <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+            <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+            <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20, x: isUser ? 20 : -20 }}
+      initial={{ opacity: 0, y: 10, x: isUser ? 10 : -10 }}
       animate={{ opacity: 1, y: 0, x: 0 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
       className={`flex gap-3 ${isUser ? "flex-row-reverse" : "flex-row"}`}
