@@ -24,6 +24,13 @@ export interface ChatMessage {
   parts: { text: string }[];
 }
 
+export class APIError extends Error {
+  constructor(message: string, public code: string) {
+    super(message);
+    this.name = "APIError";
+  }
+}
+
 export async function sendMessage(
   message: string,
   history: ChatMessage[],
@@ -60,9 +67,42 @@ export async function sendMessage(
     }
 
     return result.response.text();
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error sending message to Gemini:", error);
-    throw new Error("Maaf, terjadi kesalahan saat memproses pesan Anda. Silakan coba lagi.");
+    
+    // Check for specific error types
+    if (error?.message?.includes("API_KEY_INVALID") || error?.message?.includes("API key")) {
+      throw new APIError(
+        "API Key tidak valid atau sudah expired. Silakan hubungi developer untuk memperbarui API key.",
+        "API_KEY_INVALID"
+      );
+    }
+    
+    if (error?.message?.includes("QUOTA_EXCEEDED") || error?.message?.includes("quota")) {
+      throw new APIError(
+        "Kuota API telah habis. Silakan coba lagi nanti.",
+        "QUOTA_EXCEEDED"
+      );
+    }
+    
+    if (error?.message?.includes("PERMISSION_DENIED")) {
+      throw new APIError(
+        "Akses ditolak. API Key tidak memiliki izin yang cukup.",
+        "PERMISSION_DENIED"
+      );
+    }
+
+    if (error?.status === 429 || error?.message?.includes("429")) {
+      throw new APIError(
+        "Terlalu banyak permintaan. Silakan tunggu beberapa saat dan coba lagi.",
+        "RATE_LIMITED"
+      );
+    }
+    
+    throw new APIError(
+      "Maaf, terjadi kesalahan saat memproses pesan Anda. Silakan coba lagi.",
+      "UNKNOWN_ERROR"
+    );
   }
 }
 
@@ -111,8 +151,41 @@ export async function streamMessage(
     }
 
     return fullResponse;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error streaming message from Gemini:", error);
-    throw new Error("Maaf, terjadi kesalahan saat memproses pesan Anda. Silakan coba lagi.");
+    
+    // Check for specific error types
+    if (error?.message?.includes("API_KEY_INVALID") || error?.message?.includes("API key") || error?.message?.includes("invalid")) {
+      throw new APIError(
+        "API Key tidak valid atau sudah expired. Silakan hubungi developer untuk memperbarui API key.",
+        "API_KEY_INVALID"
+      );
+    }
+    
+    if (error?.message?.includes("QUOTA_EXCEEDED") || error?.message?.includes("quota")) {
+      throw new APIError(
+        "Kuota API telah habis. Silakan coba lagi nanti.",
+        "QUOTA_EXCEEDED"
+      );
+    }
+    
+    if (error?.message?.includes("PERMISSION_DENIED")) {
+      throw new APIError(
+        "Akses ditolak. API Key tidak memiliki izin yang cukup.",
+        "PERMISSION_DENIED"
+      );
+    }
+
+    if (error?.status === 429 || error?.message?.includes("429")) {
+      throw new APIError(
+        "Terlalu banyak permintaan. Silakan tunggu beberapa saat dan coba lagi.",
+        "RATE_LIMITED"
+      );
+    }
+    
+    throw new APIError(
+      "Maaf, terjadi kesalahan saat memproses pesan Anda. Silakan coba lagi.",
+      "UNKNOWN_ERROR"
+    );
   }
 }

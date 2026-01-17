@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu } from "lucide-react";
+import { Menu, AlertTriangle } from "lucide-react";
 import { ChatMessage } from "@/components/ChatMessage";
 import { ChatInput } from "@/components/ChatInput";
 import { ChatSidebar } from "@/components/ChatSidebar";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   getAllChats,
   getChat,
@@ -15,7 +14,7 @@ import {
   type ChatSession,
   type Message,
 } from "@/lib/chatStorage";
-import { streamMessage, type ChatMessage as GeminiMessage } from "@/lib/gemini";
+import { streamMessage, APIError, type ChatMessage as GeminiMessage } from "@/lib/gemini";
 import golemLogo from "@/assets/golem-logo.png";
 
 const Chat = () => {
@@ -25,8 +24,9 @@ const Chat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   // Load chats on mount
   useEffect(() => {
@@ -50,6 +50,7 @@ const Chat = () => {
     setCurrentChatId(newChat.id);
     setMessages([]);
     setSidebarOpen(false);
+    setError(null);
   }, []);
 
   const handleSelectChat = useCallback((id: string) => {
@@ -59,6 +60,7 @@ const Chat = () => {
       setMessages(chat.messages);
     }
     setSidebarOpen(false);
+    setError(null);
   }, []);
 
   const handleDeleteChat = useCallback((id: string) => {
@@ -96,6 +98,7 @@ const Chat = () => {
     message: string,
     imageData?: { data: string; mimeType: string }
   ) => {
+    setError(null);
     let chatId = currentChatId;
     
     // Create new chat if needed
@@ -141,13 +144,24 @@ const Chat = () => {
 
       setMessages([...updatedMessages, aiMessage]);
       setChats(getAllChats());
-    } catch (error) {
-      console.error("Error:", error);
-      const errorMessage = addMessageToChat(chatId, {
+    } catch (err) {
+      console.error("Error:", err);
+      
+      let errorMessage = "Maaf, terjadi kesalahan. Silakan coba lagi.";
+      
+      if (err instanceof APIError) {
+        errorMessage = err.message;
+        setError(err.message);
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+        setError(err.message);
+      }
+      
+      const aiErrorMessage = addMessageToChat(chatId, {
         role: "assistant",
-        content: "Maaf, terjadi kesalahan. Silakan coba lagi.",
+        content: `⚠️ **Error:** ${errorMessage}`,
       });
-      setMessages([...updatedMessages, errorMessage]);
+      setMessages([...updatedMessages, aiErrorMessage]);
       setChats(getAllChats());
     } finally {
       setIsLoading(false);
@@ -156,7 +170,7 @@ const Chat = () => {
   };
 
   return (
-    <div className="flex h-screen bg-background dark">
+    <div className="flex h-[100dvh] bg-background dark overflow-hidden">
       {/* Sidebar */}
       <ChatSidebar
         isOpen={sidebarOpen}
@@ -170,9 +184,9 @@ const Chat = () => {
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Header */}
-        <header className="flex items-center justify-between p-4 border-b border-border bg-card/50 backdrop-blur-xl">
+        <header className="flex-shrink-0 flex items-center justify-between p-4 border-b border-border bg-card/50 backdrop-blur-xl">
           <div className="flex items-center gap-2">
             <img src={golemLogo} alt="Golem AI" className="w-8 h-8 rounded-lg" />
             <h1 className="font-semibold">Golem AI</h1>
@@ -188,9 +202,35 @@ const Chat = () => {
           </motion.button>
         </header>
 
+        {/* Error Banner */}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="flex-shrink-0 bg-destructive/10 border-b border-destructive/20 px-4 py-3"
+            >
+              <div className="max-w-3xl mx-auto flex items-center gap-3 text-destructive">
+                <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+                <p className="text-sm">{error}</p>
+                <button
+                  onClick={() => setError(null)}
+                  className="ml-auto text-xs underline hover:no-underline"
+                >
+                  Tutup
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Messages */}
-        <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
-          <div className="max-w-3xl mx-auto space-y-6">
+        <div 
+          ref={messagesContainerRef}
+          className="flex-1 overflow-y-auto p-4"
+        >
+          <div className="max-w-3xl mx-auto space-y-6 pb-4">
             <AnimatePresence mode="popLayout">
               {messages.length === 0 && !isLoading && (
                 <motion.div
@@ -253,10 +293,10 @@ const Chat = () => {
             </AnimatePresence>
             <div ref={messagesEndRef} />
           </div>
-        </ScrollArea>
+        </div>
 
         {/* Input */}
-        <div className="p-4 border-t border-border bg-card/50 backdrop-blur-xl">
+        <div className="flex-shrink-0 p-4 border-t border-border bg-card/50 backdrop-blur-xl">
           <div className="max-w-3xl mx-auto">
             <ChatInput onSend={handleSend} isLoading={isLoading} />
           </div>
